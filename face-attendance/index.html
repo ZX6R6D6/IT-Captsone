@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Face Attendance</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <!-- Browser build of face-api.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <img src="assets/logo.svg" class="logo" alt="logo"/>
+      <div class="brand">Face Attendance</div>
+      <span class="tag" id="authTag" style="margin-left:auto">Welcome</span>
+    </header>
+
+    <!-- Landing -->
+    <section class="card" id="landing">
+      <h2 class="center">Sign in or create an account</h2>
+      <div class="tabs center">
+        <button class="tab active" id="tabSignIn">Sign In</button>
+        <button class="tab" id="tabCreate">Create Account</button>
+      </div>
+
+      <!-- Sign In -->
+      <div class="grid grid-2" id="signInForm">
+        <div>
+          <label>Email</label>
+          <input class="input" id="loginEmail" placeholder="you@school.edu" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input type="password" class="input" id="loginPassword" placeholder="••••••••" />
+        </div>
+        <div>
+          <button class="btn-primary" id="btnLogin">Sign In</button>
+        </div>
+      </div>
+
+      <!-- Create Account -->
+      <div id="createFlow" class="hidden">
+        <p class="center small">Choose an account type:</p>
+        <div class="tabs center">
+          <button class="tab active" id="tabRoleAdmin">Admin</button>
+          <button class="tab" id="tabRoleStudent">Student</button>
+        </div>
+
+        <div class="grid grid-2" id="createForm">
+          <div>
+            <label>Full Name</label>
+            <input class="input" id="regName" placeholder="Full name" />
+          </div>
+          <div>
+            <label>Email</label>
+            <input class="input" id="regEmail" placeholder="you@school.edu" />
+          </div>
+          <div>
+            <label>Password</label>
+            <input type="password" class="input" id="regPassword" placeholder="••••••••" />
+          </div>
+
+          <!-- Student only -->
+          <div id="studentExtra" class="hidden">
+            <label>Upload Face Photo</label>
+            <input type="file" id="faceFile" accept="image/*" class="input" />
+            <img id="facePreview" class="preview hidden" alt="Face preview" />
+          </div>
+
+          <!-- Admin only -->
+          <div id="adminExtra">
+            <p class="small">Admins don’t need a face photo. You will create courses and join codes.</p>
+          </div>
+
+          <div>
+            <button class="btn-primary" id="btnCreate">Create Account</button>
+            <p class="small" id="createMsg"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Admin Dashboard -->
+    <section class="card hidden" id="adminDash">
+      <h2>Admin Dashboard</h2>
+      <div class="grid grid-2">
+        <div>
+          <h3>Create Course</h3>
+          <input class="input" id="courseName" placeholder="Course name (e.g., Intro to AI)" />
+          <label>Late After (minutes)</label>
+          <input class="input" id="lateMinutes" type="number" value="5" />
+          <label>Absent After (minutes)</label>
+          <input class="input" id="absentMinutes" type="number" value="15" />
+          <button class="btn-primary" id="btnCreateCourse">Create Course & Join Code</button>
+          <p class="small" id="courseCreateMsg"></p>
+        </div>
+
+        <div>
+          <h3>My Courses</h3>
+          <table class="table">
+            <thead><tr><th>Name</th><th>Join Code</th><th>Actions</th></tr></thead>
+            <tbody id="courseRows"></tbody>
+          </table>
+
+          <div class="mt-2">
+            <h3>Live Attendance</h3>
+            <p class="small" id="sessionInfo">No active session.</p>
+            <table class="table">
+              <thead><tr><th>Student</th><th>Time</th><th>Status</th></tr></thead>
+              <tbody id="attRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Student Dashboard -->
+    <section class="card hidden" id="studentDash">
+      <h2>Student Dashboard</h2>
+      <div class="grid grid-2">
+        <div>
+          <h3>Enroll with Join Code</h3>
+          <input class="input" id="joinCode" placeholder="e.g., 4KJ9TQ" />
+          <button class="btn-primary" id="btnEnroll">Enroll</button>
+          <p class="small" id="enrollMsg"></p>
+        </div>
+        <div>
+          <h3>Live Check-In</h3>
+          <label>Course ID</label>
+          <input class="input" id="checkinCourseId" placeholder="Course ID" />
+          <video id="checkVideo" autoplay muted playsinline></video>
+          <button class="btn-primary" id="btnCheckIn">Check In</button>
+          <p class="small" id="checkMsg"></p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script>
+/* =========================
+   CONFIG (set your backend URL)
+   ========================= */
+// Set this to your Render backend URL when deployed, e.g.:
+const API_BASE = 'https://YOUR-BACKEND.onrender.com';  // <- change this after deploying backend
+
+/* =========================
+   BASIC STATE + UTILITIES
+   ========================= */
+let createRole = 'admin';
+let auth = { token:null, role:null, name:null };
+
+const $  = (s)=>document.querySelector(s);
+const show = (sel, vis=true)=>{ const el=$(sel); if(el) el.classList.toggle('hidden', !vis); };
+
+/* For admin live view */
+let currentSession = null;
+let attPoll = null;
+
+/* =========================
+   REAL API (fetch to backend)
+   ========================= */
+async function api(path, method='GET', body){
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(auth.token ? { 'Authorization': `Bearer ${auth.token}` } : {})
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'omit'
+  });
+  const data = await res.json().catch(()=>null);
+  if (!res.ok) throw new Error(data?.detail || data?.message || 'Request failed');
+  return data;
+}
+
+/* =========================
+   FACE-API.JS (weights/)
+   ========================= */
+const MODEL_URL = './weights';
+let _faceModelsReady = false;
+
+async function loadFaceModels(){
+  if (_faceModelsReady) return;
+  await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+  await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+  await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+  _faceModelsReady = true;
+}
+function faceOptions(){ return new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }); }
+async function ensureModels(){ if(!_faceModelsReady) await loadFaceModels(); }
+
+async function embeddingFromImageElement(imgEl){
+  await ensureModels();
+  const det = await faceapi.detectSingleFace(imgEl, faceOptions()).withFaceLandmarks().withFaceDescriptor();
+  if(!det) throw new Error('No face detected in the uploaded photo.');
+  return Array.from(det.descriptor);
+}
+
+async function setupCamera(videoEl){
+  const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user' } });
+  videoEl.srcObject = stream;
+  await new Promise(res => videoEl.onloadedmetadata = res);
+  return stream;
+}
+async function embeddingFromVideoElement(videoEl){
+  await ensureModels();
+  const det = await faceapi.detectSingleFace(videoEl, faceOptions()).withFaceLandmarks().withFaceDescriptor();
+  if(!det) throw new Error('No face detected on camera.');
+  return Array.from(det.descriptor);
+}
+
+/* =========================
+   LANDING TABS & ROLE TABS
+   ========================= */
+$('#tabSignIn').onclick = ()=>setAction('signin');
+$('#tabCreate').onclick  = ()=>setAction('create');
+function setAction(which){
+  const isCreate = which==='create';
+  $('#tabCreate').classList.toggle('active', isCreate);
+  $('#tabSignIn').classList.toggle('active', !isCreate);
+  show('#signInForm', !isCreate);
+  show('#createFlow', isCreate);
+}
+setAction('signin');
+
+$('#tabRoleAdmin').onclick   = ()=>setRole('admin');
+$('#tabRoleStudent').onclick = ()=>setRole('student');
+function setRole(role){
+  createRole = role;
+  $('#tabRoleAdmin').classList.toggle('active', role==='admin');
+  $('#tabRoleStudent').classList.toggle('active', role==='student');
+  show('#adminExtra', role==='admin');
+  show('#studentExtra', role==='student');
+}
+setRole('admin');
+
+/* Upload → preview */
+$('#faceFile')?.addEventListener('change', (e)=>{
+  const file = e.target.files?.[0];
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  const img = $('#facePreview');
+  img.src = url;
+  img.classList.remove('hidden');
+});
+
+/* =========================
+   AUTH ACTIONS
+   ========================= */
+$('#btnLogin').onclick = async (ev)=>{
+  ev.preventDefault();
+  try{
+    const data = await api('/auth/login','POST',{ 
+      email: $('#loginEmail').value.trim(), 
+      password: $('#loginPassword').value 
+    });
+    auth = { token: data.access_token, role: data.role, name: data.name };
+    postLoginUI();
+  }catch(e){ alert(e.message || 'Login failed'); }
+};
+
+$('#btnCreate').onclick = async (ev)=>{
+  ev.preventDefault();
+  try{
+    let faceVec = null;
+    if (createRole === 'student') {
+      const img = document.getElementById('facePreview');
+      if (!img || !img.src) throw new Error('Please upload a face photo for student signup.');
+      faceVec = await embeddingFromImageElement(img);
+    }
+    const data = await api('/auth/register','POST',{
+      name: $('#regName').value.trim(),
+      email: $('#regEmail').value.trim(),
+      password: $('#regPassword').value,
+      role: (createRole==='admin' ? 'professor' : 'student'),
+      face_embedding: faceVec
+    });
+    auth = { token: data.access_token, role: data.role, name: data.name };
+    $('#createMsg').textContent = 'Account created!';
+    postLoginUI();
+  }catch(err){
+    $('#createMsg').textContent = err.message || 'Signup error';
+  }
+};
+
+function postLoginUI(){
+  $('#authTag').textContent = `${auth.role||'professor'} — ${auth.name||'User'}`;
+  show('#landing', false);
+  if ((auth.role||'professor') === 'professor') loadAdmin(); else loadStudent();
+}
+
+/* =========================
+   ADMIN (start/stop + live)
+   ========================= */
+async function loadAdmin(){ show('#adminDash', true); await refreshCourses(); }
+
+async function refreshCourses(){
+  const rows = $('#courseRows'); rows.innerHTML='';
+  try{
+    const courses = await api('/courses/mine');
+    if (!courses.length){
+      rows.innerHTML = `<tr><td colspan="3" class="small">No courses yet — create one on the left.</td></tr>`;
+    }
+    for(const c of courses){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${c.name}</td><td><span class="kbd">${c.code}</span></td>
+        <td>
+          <button class="btn-ghost" data-act="start" data-course="${c.id}">Start Session</button>
+          <button class="btn-ghost" data-act="stop"  data-course="${c.id}">Stop</button>
+        </td>`;
+      rows.appendChild(tr);
+    }
+  }catch(e){
+    rows.innerHTML = `<tr><td colspan="3" class="small status-err">${e.message||'Failed to load courses'}</td></tr>`;
+  }
+}
+
+/* Create course */
+$('#btnCreateCourse').onclick = async (ev)=>{
+  ev.preventDefault();
+  const btn = ev.currentTarget;
+  try{
+    const name = $('#courseName').value.trim();
+    const late   = +($('#lateMinutes').value || 5);
+    const absent = +($('#absentMinutes').value || 15);
+    if(!name){ $('#courseCreateMsg').textContent = 'Enter a course name.'; return; }
+
+    btn.disabled = true; btn.textContent = 'Creating…';
+    const c = await api('/courses','POST',{ name });
+    $('#courseCreateMsg').textContent = `Created ${c.name} — join code ${c.code}`;
+    $('#courseName').value = '';
+    await refreshCourses();
+
+    // Optionally auto-start a session after creating
+    const s = await api('/sessions/start','POST',{ course_id: c.id, late_after_minutes: late, absent_after_minutes: absent });
+    currentSession = s;
+    showSessionInfo();
+    startAttendancePoll();
+  }catch(e){
+    $('#courseCreateMsg').textContent = e.message || 'Could not create course.';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Create Course & Join Code';
+  }
+};
+
+/* Start/Stop handlers in table */
+$('#courseRows').onclick = async (e)=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  const courseId = +btn.dataset.course;
+  const act = btn.dataset.act;
+
+  if (act === 'start'){
+    try{
+      const late   = +($('#lateMinutes').value || 5);
+      const absent = +($('#absentMinutes').value || 15);
+      const s = await api('/sessions/start','POST',{ course_id: courseId, late_after_minutes: late, absent_after_minutes: absent });
+      currentSession = s;
+      showSessionInfo();
+      startAttendancePoll();
+      alert(`Session started (late>${late}m, absent>${absent}m).`);
+    }catch(err){ alert(err.message||'Could not start session'); }
+  }
+
+  if (act === 'stop'){
+    try{
+      if (!currentSession){ alert('No active session.'); return; }
+      await api(`/sessions/${currentSession.id}/end`, 'POST');
+      currentSession = null;
+      showSessionInfo();
+      stopAttendancePoll();
+      $('#attRows').innerHTML = '';
+      alert('Session ended.');
+    }catch(err){ alert(err.message||'Could not stop session'); }
+  }
+};
+
+function showSessionInfo(){
+  const el = $('#sessionInfo');
+  if (!currentSession){
+    el.textContent = 'No active session.';
+  } else {
+    const start = new Date(currentSession.start_time).toLocaleTimeString();
+    el.textContent = `Active session for course #${currentSession.course_id} — started ${start}. Late>${currentSession.late_after_minutes}m, Absent>${currentSession.absent_after_minutes}m.`;
+  }
+}
+
+function startAttendancePoll(){
+  stopAttendancePoll();
+  attPoll = setInterval(refreshAttendance, 2500);
+  refreshAttendance();
+}
+function stopAttendancePoll(){ if(attPoll){ clearInterval(attPoll); attPoll=null; } }
+
+async function refreshAttendance(){
+  if (!currentSession) return;
+  try{
+    const list = await api(`/attendance/session/${currentSession.id}`, 'GET');
+    const tbody = $('#attRows'); tbody.innerHTML='';
+    for(const a of list){
+      const t = new Date(a.timestamp).toLocaleTimeString();
+      const cls = a.status==='present' ? 'status-ok' : (a.status==='late' ? 'status-warn' : 'status-err');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${a.student_name}</td><td>${t}</td><td class="${cls}">${a.status.toUpperCase()}</td>`;
+      tbody.appendChild(tr);
+    }
+  }catch(e){
+    $('#attRows').innerHTML = `<tr><td colspan="3" class="small status-err">${e.message||'Failed to load attendance'}</td></tr>`;
+  }
+}
+
+/* =========================
+   STUDENT (camera + check-in)
+   ========================= */
+function loadStudent(){
+  show('#studentDash', true);
+  setupCamera(document.getElementById('checkVideo')).catch(()=>{
+    $('#checkMsg').textContent = 'Camera blocked. Allow camera and reload.';
+  });
+}
+
+$('#btnEnroll').onclick  = async ()=>{
+  try{
+    const r = await api('/courses/enroll','POST',{ join_code: $('#joinCode').value.trim().toUpperCase() });
+    $('#enrollMsg').textContent = `Enrolled in course #${r.course_id}`;
+  }catch(e){ $('#enrollMsg').textContent = e.message||'Enroll failed'; }
+};
+
+$('#btnCheckIn').onclick = async ()=>{
+  const msg = document.getElementById('checkMsg');
+  msg.textContent = 'Checking...';
+  try{
+    const courseId = +document.getElementById('checkinCourseId').value;
+    if (!courseId){ msg.textContent = 'Enter Course ID.'; return; }
+    // (Optional) verify session is active:
+    const info = await api(`/sessions/active?course_id=${courseId}`,'GET');
+    if (!info.active){ msg.textContent = 'No active session for this course.'; return; }
+
+    const vec = await embeddingFromVideoElement(document.getElementById('checkVideo'));
+    const r = await api('/checkin','POST',{ course_id: courseId, face_embedding: vec });
+    msg.textContent = `Checked in as ${String(r.status||'present').toUpperCase()}`;
+  }catch(err){
+    msg.textContent = err.message || 'Check-in failed';
+  }
+};
+</script>
+</body>
+</html>
+
+

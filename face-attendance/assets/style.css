@@ -1,0 +1,225 @@
+/* =======================
+   Premium Academic Theme
+   ======================= */
+:root{
+  --bg:#0b0f24;
+  --bg-2:#0f1431;
+  --card:#12183b;
+  --ink:#e9ecff;
+  --muted:#b8c0ff;
+  --line:rgba(255,255,255,.07);
+
+  --indigo:#3b2e9a;
+  --violet:#6b46c1;
+  --accent:#8b5cf6;
+
+  --ok:#10b981;
+  --warn:#f59e0b;
+  --err:#ef4444;
+
+  --radius:18px;
+  --shadow:0 10px 30px rgba(0,0,0,.25);
+  --shadow-soft:0 6px 20px rgba(0,0,0,.18);
+  --speed:.18s;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  color:var(--ink);
+  background:
+    radial-gradient(1200px 900px at -10% -10%, #1b1f48 0%, rgba(0,0,0,0) 60%),
+    radial-gradient(900px 700px at 110% -10%, #2a1f6b 0%, rgba(0,0,0,0) 60%),
+    linear-gradient(180deg, var(--bg) 0%, #090d1e 100%);
+}
+
+/* Containers & cards */
+.container{max-width:1120px;margin:0 auto;padding:28px 22px}
+.header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.logo{width:40px;height:40px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+.brand{font-weight:800;letter-spacing:.3px}
+.tag{
+  margin-left:auto;
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:12px;color:var(--muted);
+  padding:6px 10px;border-radius:999px;
+  background:rgba(139,92,246,.12);border:1px solid var(--line)
+}
+
+.card{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.0)),
+    linear-gradient(180deg, var(--card), #0f1640);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:22px;
+  backdrop-filter: blur(6px);
+}
+
+/* Typography */
+h1,h2,h3{margin:0 0 10px 0;line-height:1.2}
+h2{font-size:22px}
+h3{font-size:18px;color:var(--muted)}
+.small{font-size:12px;opacity:.85}
+.center{text-align:center}
+
+/* Layout helpers */
+.grid{display:grid;gap:16px}
+.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:880px){ .grid-2{grid-template-columns:1fr} }
+
+/* Inputs & buttons */
+label{display:block;margin:6px 0 6px 2px;font-size:13px;color:var(--muted)}
+.input, select, button{
+  width:100%;
+  padding:12px 14px;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:#0d1334;
+  color:var(--ink);
+  outline:none;
+  transition: border-color var(--speed) ease, box-shadow var(--speed) ease, transform var(--speed) ease, background var(--speed) ease;
+}
+.input::placeholder{color:#a5adff88}
+.input:focus, select:focus{
+  border-color:#a29bfe66;
+  box-shadow:0 0 0 4px rgba(162,155,254,.12);
+}
+input[type="file"].input{padding:10px}
+
+button{
+  cursor:pointer;
+  background:linear-gradient(180deg, #0f1540, #0b1033);
+  user-select:none;
+}
+button:hover{transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+button:disabled{opacity:.6;cursor:not-allowed}
+
+.btn-primary{
+  background:linear-gradient(90deg, var(--indigo), var(--violet));
+  border:0;
+  box-shadow:0 6px 18px rgba(107,70,193,.28);
+}
+.btn-primary:hover{filter:saturate(1.05) brightness(1.02)}
+.btn-ghost{
+  background:transparent;
+  border:1px solid var(--line);
+}
+
+/* Tabs */
+.tabs{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap;justify-content:center}
+.tab{
+  padding:10px 14px;
+  border-radius:999px;
+  background:#0e1436;
+  border:1px solid var(--line);
+  color:var(--muted);
+  min-width:110px;
+}
+.tab:hover{color:#dfe3ff}
+.tab.active{
+  background:linear-gradient(90deg, var(--indigo), var(--violet));
+  color:white;
+  border-color:transparent;
+  box-shadow:0 8px 22px rgba(107,70,193,.35);
+}
+
+/* Table */
+.table{width:100%;border-collapse:collapse;margin-top:6px;font-size:14px}
+.table th,.table td{padding:10px;border-bottom:1px dashed var(--line)}
+.table th{color:var(--muted);text-align:left;font-weight:600}
+.kbd{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  background:#0e1436;border:1px solid var(--line);
+  padding:2px 8px;border-radius:6px;font-size:12px;color:#dfe3ff;
+}
+
+/* Status colors */
+.status-ok{color:var(--ok);font-weight:600}
+.status-warn{color:var(--warn);font-weight:600}
+.status-err{color:var(--err);font-weight:600}
+
+/* Visibility helpers */
+.hidden{display:none}
+
+/* Media */
+video, img.preview{
+  width:100%;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:#0e1436;
+  box-shadow:var(--shadow-soft);
+}
+
+/* Fancy focus ring for key navigation */
+:focus-visible{
+  outline:2px solid transparent;
+  box-shadow:0 0 0 4px rgba(139,92,246,.35) !important;
+  border-color:#9f7aea !important;
+}
+
+/* Subtle animations */
+@media (prefers-reduced-motion:no-preference){
+  .card, .tab, .btn-primary{transition:transform var(--speed) ease, box-shadow var(--speed) ease, filter var(--speed) ease}
+  .card:hover{transform:translateY(-2px)}
+}
+
+/* Callouts / messages */
+.notice{
+  padding:10px 12px;border:1px solid var(--line);
+  background:rgba(139,92,246,.08);
+  border-radius:12px;color:#dfe3ff;font-size:13px
+}
+
+/* Form layout tweaks */
+#signInForm > div:last-child,
+#createForm  > div:last-child{align-self:end}
+
+#courseCreateMsg, #createMsg, #enrollMsg, #checkMsg{
+  min-height:18px;margin-top:8px;color:var(--muted)
+}
+
+/* Header accent */
+.brand{
+  background:linear-gradient(90deg, var(--indigo), var(--violet));
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  font-size:20px;
+}
+
+/* Card headings underline effect */
+.card h2::after{
+  content:"";
+  display:block;
+  width:56px;height:3px;border-radius:2px;
+  margin-top:8px;
+  background:linear-gradient(90deg, var(--indigo), var(--violet));
+  opacity:.9
+}
+
+/* Buttons in tables */
+.table button.btn-ghost{
+  padding:8px 10px;
+  border-radius:10px;
+}
+.table button.btn-ghost:hover{
+  border-color:#a29bfe66;
+  background:#0f1744;
+}
+
+/* Utility spacers if needed */
+.mt-1{margin-top:6px}.mt-2{margin-top:12px}.mt-3{margin-top:18px}
+.mb-1{margin-bottom:6px}.mb-2{margin-bottom:12px}.mb-3{margin-bottom:18px}
+
+/* Mobile tweaks */
+@media (max-width:520px){
+  .container{padding:18px 14px}
+  .brand{font-size:18px}
+  .tab{min-width:auto;padding:9px 12px}
+}
